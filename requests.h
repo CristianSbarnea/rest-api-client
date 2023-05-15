@@ -16,10 +16,17 @@ using namespace std;
 #define PATH_LIBRARY_BOOKS (char*) "/api/v1/tema/library/books"
 #define APPLICATION_JSON (char*) "application/json"
 
+class Cookie {
+    public:
+		Cookie(string key, string value);
+        string key;
+        string value;
+};
+
 // computes and returns a GET request string (query_params
 // and cookies can be set to NULL if not needed)
 char *compute_get_request(char *host, char *url, char *query_params,
-							vector<string> cookies);
+							vector<Cookie> cookies);
 
 // computes and returns a POST request string (cookies can be NULL if not needed)
 char *compute_post_request(char *host, char *url, char* content_type, string content, 
@@ -30,5 +37,8 @@ void registerFunct(char* host);
 
 // computes a POST LOGIN request
 string loginFunct(char* host);
+
+// computes a GET ENTER_LIBRARY request
+string getLibraryAccess(char* host, vector<Cookie> cookies);
 
 #endif

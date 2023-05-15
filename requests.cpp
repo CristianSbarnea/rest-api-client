@@ -15,7 +15,7 @@ using namespace std;
 using json = nlohmann::json;
 
 char *compute_get_request(char *host, char *url, char *query_params,
-                          vector<string> cookies)
+                          vector<Cookie> cookies)
 {
     char *message = (char *)calloc(BUFLEN, sizeof(char));
     char *line = (char *)calloc(LINELEN, sizeof(char));
@@ -23,23 +23,22 @@ char *compute_get_request(char *host, char *url, char *query_params,
     // Step 1: write the method name, URL, request params (if any) and protocol type
     if (query_params != NULL)
     {
-        sprintf(line, "GET %s?%s HTTP/1.1\r\n", url, query_params);
+        sprintf(line, "GET %s?%s HTTP/1.1", url, query_params);
     }
     else
     {
-        sprintf(line, "GET %s HTTP/1.1\r\n", url);
+        sprintf(line, "GET %s HTTP/1.1", url);
     }
 
     compute_message(message, line);
 
     // Step 2: add the host
+    sprintf(line, "Host: %s", host);
+    compute_message(message, line);
 
-    sprintf(line, "Host: %s\r\n", host);
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
 
     // Step 4: add final new line
-    strcat(message, "\n");
-
     compute_message(message, "");
     return message;
 }
@@ -76,6 +75,12 @@ char *compute_post_request(char *host, char *url, char *content_type, string con
 
     free(line);
     return message;
+}
+
+Cookie::Cookie(string key, string value)
+{
+    this->key = key;
+    this->value = value;
 }
 
 void registerFunct(char *host)
@@ -208,7 +213,7 @@ string loginFunct(char *host)
         free(response);
         close(sockfd);
         // take session cookie
-        string session_cookie = resp.substr(resp.find("connect.sid=") + 12);
+        string session_cookie = resp.substr(resp.find("connect.sid="));
         session_cookie = session_cookie.substr(0, session_cookie.find(";"));
         return session_cookie;
     }
@@ -234,8 +239,36 @@ string loginFunct(char *host)
     return "";
 }
 
-string getLibraryAccess()
+string getLibraryAccess(char* host, vector<Cookie> cookies)
 {
+    char *message, *response;
+    json j, response_json_parsed;
 
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    // create message
+    message = compute_get_request(host, PATH_LIBRARY_ACCESS, NULL, cookies);
+
+    // add cookie to message
+    string cookie = "Cookie: ";
+    for (int i = 0; i < cookies.size(); i++)
+    {
+        cookie += cookies[i].key + "=" + cookies[i].value;
+        if (i != cookies.size() - 1)
+        {
+            cookie += "; ";
+        }
+    }
+
+    // add cookie to message
+    compute_message(message, cookie.c_str());
+
+    cout << message << endl;
     return "";
 }

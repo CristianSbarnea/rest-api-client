@@ -13,13 +13,15 @@
 
 using namespace std;
 using json = nlohmann::json;
+#include <unordered_map>
 
 int main(int argc, char *argv[])
 {
 
     string host = string(IP) + string(PORT_CHAR);
     string readLine;
-    vector<string> cookies;
+    vector<Cookie> cookies;
+    bool loggedIn = false;
 
     while (true)
     {
@@ -37,19 +39,29 @@ int main(int argc, char *argv[])
             {
                 continue;
             }
-
-            if (cookies.empty())
-            {
-                cookies.push_back(session_cookie);
+            // take string before '='
+            string key = session_cookie.substr(0, session_cookie.find("="));
+            // take string after '='
+            string value = session_cookie.substr(session_cookie.find("=") + 1);
+            Cookie cookie(key, value);
+            if (!cookies.empty()) {
+                cookies[0] = cookie;
+            } else {
+                cookies.push_back(cookie);
             }
-            else
-            {
-                cookies[0] = session_cookie;
-            }
+            loggedIn = true;
         }
         else if (readLine == "exit")
         {
             break;
+        }
+        else if (readLine == "enter_library") 
+        {
+            if (!loggedIn) {
+                cout << "You are not logged in." << endl;
+                continue;
+            }
+            getLibraryAccess((char *)host.c_str(), cookies);
         }
         else
         {
