@@ -1,10 +1,10 @@
-#include <stdio.h>     
-#include <stdlib.h>     
-#include <unistd.h>     
-#include <string.h>     
-#include <sys/socket.h> 
-#include <netinet/in.h> 
-#include <netdb.h>      
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include "helpers.h"
 #include "requests.h"
@@ -14,43 +14,51 @@
 using namespace std;
 using json = nlohmann::json;
 
-#define IP (char*) "34.254.242.81"
-#define PORT_CHAR (char*) ":8080"
-#define PORT (int) 8080
-
-int main(int argc, char *argv[]) {
-    
-    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("open_connection");
-        exit(1);
-    }
+int main(int argc, char *argv[])
+{
 
     string host = string(IP) + string(PORT_CHAR);
-
-    // ask user if he wants to register or login
     string readLine;
-    
-    while (true) {
+    vector<string> cookies;
+
+    while (true)
+    {
 
         cin >> readLine;
-        if (readLine == "register") {
-            registerFct(sockfd, (char*)host.c_str());
-        } else if (readLine == "login") {
-            string responseLog = loginFunct(sockfd, (char*)host.c_str());
-            if (responseLog == "") {
-                cout << "Invalid username or password" << endl;
+        if (readLine == "register")
+        {
+            registerFunct((char *)host.c_str());
+        }
+        else if (readLine == "login")
+        {
+            string session_cookie = loginFunct((char *)host.c_str());
+
+            if (session_cookie == "")
+            {
                 continue;
             }
-        } else if (readLine == "exit") {
+
+            if (cookies.empty())
+            {
+                cookies.push_back(session_cookie);
+            }
+            else
+            {
+                cookies[0] = session_cookie;
+            }
+        }
+        else if (readLine == "exit")
+        {
             break;
-        } else {
+        }
+        else
+        {
             cout << "Invalid command" << endl;
             continue;
         }
-        
-
     }
-    
+
+    cookies.clear();
+
     return 0;
 }
