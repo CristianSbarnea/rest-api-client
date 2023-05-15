@@ -21,11 +21,11 @@ int main(int argc, char *argv[])
     string host = string(IP) + string(PORT_CHAR);
     string readLine;
     vector<Cookie> cookies;
+    string token;
     bool loggedIn = false;
 
     while (true)
     {
-
         cin >> readLine;
         if (readLine == "register")
         {
@@ -61,7 +61,10 @@ int main(int argc, char *argv[])
                 cout << "You are not logged in." << endl;
                 continue;
             }
-            getLibraryAccess((char *)host.c_str(), cookies);
+            token = getLibraryAccess((char *)host.c_str(), cookies);
+            if (token == "") {
+                continue;
+            }
         }
         else
         {

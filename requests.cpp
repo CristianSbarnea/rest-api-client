@@ -39,7 +39,7 @@ char *compute_get_request(char *host, char *url, char *query_params,
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
 
     // Step 4: add final new line
-    compute_message(message, "");
+    free(line);
     return message;
 }
 
@@ -130,11 +130,11 @@ void registerFunct(char *host)
     // take response code
     string response_code = resp.substr(9, 3);
     int code = stoi(response_code);
-    if (code == 201)
+    if (code >= 200 && code < 300)
     {
         cout << "Account created successfully." << endl;
     }
-    else if (code == 400)
+    else if (code >= 400)
     {
         char *p = strstr(response, "\r\n\r\n"); // skip headers
         if (p != NULL)
@@ -206,7 +206,7 @@ string loginFunct(char *host)
     // take response code
     string response_code = resp.substr(9, 3);
     int code = stoi(response_code);
-    if (code == 200)
+    if (code >= 200 && code < 300)
     {
         cout << "Login successful." << endl;
         free(message);
@@ -217,7 +217,7 @@ string loginFunct(char *host)
         session_cookie = session_cookie.substr(0, session_cookie.find(";"));
         return session_cookie;
     }
-    else if (code == 400)
+    else if (code >= 400)
     {
         char *p = strstr(response, "\r\n\r\n"); // skip headers
         if (p != NULL)
@@ -242,7 +242,6 @@ string loginFunct(char *host)
 string getLibraryAccess(char* host, vector<Cookie> cookies)
 {
     char *message, *response;
-    json j, response_json_parsed;
 
     // open socket
     int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
@@ -256,8 +255,8 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     message = compute_get_request(host, PATH_LIBRARY_ACCESS, NULL, cookies);
 
     // add cookie to message
-    string cookie = "Cookie: ";
-    for (int i = 0; i < cookies.size(); i++)
+    string cookie = "Cookie: 4302480-1";
+    for (unsigned int i = 0; i < cookies.size(); i++)
     {
         cookie += cookies[i].key + "=" + cookies[i].value;
         if (i != cookies.size() - 1)
@@ -269,6 +268,63 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     // add cookie to message
     compute_message(message, cookie.c_str());
 
+    string auth = "Authorization: ";
+    compute_message(message, auth.c_str());
+
+    strcat(message, "\n");
+
+    // send message
+    send_to_server(sockfd, message);
+
     cout << message << endl;
+
+    // receive response
+    response = receive_from_server(sockfd);
+
+    string resp = string(response);
+        cout << resp << endl;
+
+    // check if response is null
+    if (response == NULL || resp.size() == 0)
+    {
+        cout << "Server did not respond!" << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        return "";
+    }
+
+    // take response code
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+
+    if (code >= 200 && code < 300)
+    {
+        cout << "Access granted." << endl << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+
+        // parse json
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string token = response_json_parsed["token"];
+        return token;
+    }
+    else if (code >= 400)
+    {
+        cout << "Access denied." << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        cout << response_json_parsed["error"] << endl << endl;
+        return "";
+    } 
+    else
+    {
+        cout << "Error getting library access." << endl << endl;
+    }
+
+
     return "";
 }
