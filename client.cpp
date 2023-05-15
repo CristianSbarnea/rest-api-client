@@ -26,33 +26,31 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    char* host = (char*) calloc(50, sizeof(char));
-    if (host == NULL) {
-        perror("calloc");
-        exit(1);
-    }
+    string host = string(IP) + string(PORT_CHAR);
 
-    // create host
-    strcat(host, IP);
-    strcat(host, PORT_CHAR);
-    
     // ask user if he wants to register or login
     string readLine;
     
     while (true) {
-        cin >> readLine;
 
+        cin >> readLine;
         if (readLine == "register") {
-            registerFct(sockfd, host);
+            registerFct(sockfd, (char*)host.c_str());
         } else if (readLine == "login") {
-            loginFct(sockfd, host);
+            string responseLog = loginFunct(sockfd, (char*)host.c_str());
+            if (responseLog == "") {
+                cout << "Invalid username or password" << endl;
+                continue;
+            }
+        } else if (readLine == "exit") {
+            break;
         } else {
             cout << "Invalid command" << endl;
+            continue;
         }
         
 
     }
     
-    free(host);
     return 0;
 }

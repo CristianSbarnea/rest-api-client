@@ -56,7 +56,7 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
 {
     char *message = (char*)calloc(BUFLEN, sizeof(char));
     char *line = (char*)calloc(LINELEN, sizeof(char));
-    char *body_data_buffer = (char*)calloc(LINELEN, sizeof(char));
+    //char *body_data_buffer = (char*)calloc(LINELEN, sizeof(char));
 
     // Step 1: write the method name, URL and protocol type
     sprintf(line, "POST %s HTTP/1.1", url);
@@ -123,18 +123,18 @@ void registerFct(int sockfd, char* host) {
         // receive response
         response = receive_from_server(sockfd);
 
-        if (response == NULL) {
+        string resp = string(response);
+
+        if (response == NULL || resp.size() == 0) {
             cout << "Error receiving response from server." << endl;
             free(message);
             free(response);
-            return;
+            continue;
         }
 
-        // get response code
-        string resp_code = strstr(response, "HTTP/1.1 ");
-        resp_code = resp_code.substr(9, 3);
+        string response_code = resp.substr(9, 3);
 
-        int code = stoi(resp_code);
+        int code = stoi(response_code);
 
         if (code == 201) {
             cout << "Account created successfully." << endl;
@@ -143,7 +143,9 @@ void registerFct(int sockfd, char* host) {
             return;
         } else if (code == 400) {
             char *p = strstr(response, "\r\n\r\n"); // skip headers
-            p += 4; // skip \r\n\r\n
+            if (p != NULL) {
+                p += 4;
+            }
             response_json_parsed = json::parse(p);
             cout << response_json_parsed["error"] << endl;
         } else {
@@ -156,58 +158,78 @@ void registerFct(int sockfd, char* host) {
     } while (true);
 }
 
-void loginFct(int sockfd, char* host) {
+std::string loginFunct(int sockfd, char* host) {
 
     cout << endl << "Login: " << endl << endl;
     char *message, *response;
     string username, password;
     json j, response_json_parsed;
 
-    do {
-        cout << "Username: ";
-        cin >> username;
-        cout << "Password: ";
-        cin >> password;
+    cout << "Username: ";
+    cin >> username;
+    cout << "Password: ";
+    cin >> password;
 
-        j["username"] = username;
-        j["password"] = password;
+    j["username"] = username;
+    j["password"] = password;
 
-        message = compute_post_request(host, PATH_LOGIN, APPLICATION_JSON, NULL, 0, NULL, 0);
+    message = compute_post_request(host, PATH_LOGIN, APPLICATION_JSON, NULL, 0, NULL, 0);
 
-        // add content length
-        string content_length = "Content-Length: ";
-        content_length += to_string(j.dump().size());
+    // add content length
+    string content_length = "Content-Length: ";
+    content_length += to_string(j.dump().size());
 
-        compute_message(message, content_length.c_str());
-        strcat(message, "\n");
+    compute_message(message, content_length.c_str());
+    strcat(message, "\r\n");
 
-        // add json
-        compute_message(message, j.dump().c_str());
+    // add json
+    compute_message(message, j.dump().c_str());
 
-        // add final new line
-        strcat(message, "\n");
+    // add final new line
+    strcat(message, "\r\n\n");
 
-        cout << message;
+    cout << message;
 
-        // send message
-        send_to_server(sockfd, message);
+    // send message
+    send_to_server(sockfd, message);
 
-        // receive response
-        response = receive_from_server(sockfd);
+    // receive response
+    response = receive_from_server(sockfd);
 
-        // check if response is null
-        if (response == NULL) {
-            cout << "Server did not respond!" << endl;
-            free(message);
-            free(response);
-            continue;
-        }
+    string resp = string(response);
 
-        
+    cout << endl << endl << "RESPONSE: " << endl << endl << resp << endl << endl;
+    // check if response is null
+    if (response == NULL || resp.size() == 0) {
+        cout << "Server did not respond!" << endl;
         free(message);
-        free(response);
+        return string("");
+    }
 
-    } while (true) ;
+    string response_code = resp.substr(9, 3);
+
+    cout << response_code << endl;
+
+    int code = stoi(response_code);
+
+    if (code == 200) {
+        cout << "Login successful." << endl;
+        free(message);
+        return string("");
+    } else if (code == 400) {
+        char *p = strstr(response, "\r\n\r\n"); // skip headers
+        if (p != NULL) {
+            p += 4;
+        }
+            response_json_parsed = json::parse(p);
+            cout << response_json_parsed["error"] << endl;
+        } else {
+            cout << "Error logging in." << endl;
+    }
+        
+    free(message);
+
+    return string("");
 }
 
 
