@@ -15,7 +15,7 @@ using namespace std;
 using json = nlohmann::json;
 
 char *compute_get_request(char *host, char *url, char *query_params,
-                          char **cookies, int cookies_count)
+                          vector<string> cookies)
 {
     char *message = (char *)calloc(BUFLEN, sizeof(char));
     char *line = (char *)calloc(LINELEN, sizeof(char));
@@ -36,9 +36,6 @@ char *compute_get_request(char *host, char *url, char *query_params,
 
     sprintf(line, "Host: %s\r\n", host);
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
-    if (cookies != NULL)
-    {
-    }
 
     // Step 4: add final new line
     strcat(message, "\n");
@@ -131,8 +128,6 @@ void registerFunct(char *host)
     if (code == 201)
     {
         cout << "Account created successfully." << endl;
-        free(message);
-        return;
     }
     else if (code == 400)
     {
@@ -141,6 +136,7 @@ void registerFunct(char *host)
         {
             p += 4;
         }
+        // parse json
         response_json_parsed = json::parse(p);
         cout << response_json_parsed["error"] << endl;
     }
@@ -198,6 +194,8 @@ string loginFunct(char *host)
         cout << "Server did not respond!" << endl;
         free(message);
         free(response);
+        close(sockfd);
+        return "";
     }
 
     // take response code
@@ -208,6 +206,8 @@ string loginFunct(char *host)
         cout << "Login successful." << endl;
         free(message);
         free(response);
+        close(sockfd);
+        // take session cookie
         string session_cookie = resp.substr(resp.find("connect.sid=") + 12);
         session_cookie = session_cookie.substr(0, session_cookie.find(";"));
         return session_cookie;
@@ -219,6 +219,7 @@ string loginFunct(char *host)
         {
             p += 4;
         }
+        // parse json
         response_json_parsed = json::parse(p);
         cout << response_json_parsed["error"] << endl;
     }
@@ -230,6 +231,11 @@ string loginFunct(char *host)
     free(response);
     free(message);
     close(sockfd);
+    return "";
+}
+
+string getLibraryAccess()
+{
 
     return "";
 }
