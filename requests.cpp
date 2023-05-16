@@ -20,55 +20,47 @@ char *compute_get_request(char *host, char *url, char *query_params,
     char *message = (char *)calloc(BUFLEN, sizeof(char));
     char *line = (char *)calloc(LINELEN, sizeof(char));
 
-    // Step 1: write the method name, URL, request params (if any) and protocol type
-    if (query_params != NULL)
-    {
+    // write the method name, URL, request params (if any) and protocol type
+    if (query_params != NULL) {
         sprintf(line, "GET %s?%s HTTP/1.1", url, query_params);
-    }
-    else
-    {
+    } else {
         sprintf(line, "GET %s HTTP/1.1", url);
     }
-
     compute_message(message, line);
 
-    // Step 2: add the host
+    //add the host
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
 
-    // Step 3 (optional): add headers and/or cookies, according to the protocol format
-
-    // Step 4: add final new line
     free(line);
     return message;
 }
 
 char *compute_post_request(char *host, char *url, char *content_type, string content,
-                           vector<string> cookies)
+                           vector<Cookie> cookies, string token)
 {
     char *message = (char *)calloc(BUFLEN, sizeof(char));
     char *line = (char *)calloc(LINELEN, sizeof(char));
 
-    // Step 1: write the method name, URL and protocol type
+    // write the method name, URL and protocol type
     sprintf(line, "POST %s HTTP/1.1", url);
     compute_message(message, line);
 
-    // Step 2: add the host
+    // add the host
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
 
-    /* Step 3: add necessary headers (Content-Type and Content-Length are mandatory)
-            in order to write Content-Length you must first compute the message size
-    */
+    // add necessary headers 
+    if (token != "") {
+        sprintf(line, "Authorization: Bearer %s", token.c_str());
+        compute_message(message, line);
+    }
+
     sprintf(line, "Content-Type: %s", content_type);
     compute_message(message, line);
 
     sprintf(line, "Content-Length: %ld", content.size());
     compute_message(message, line);
-
-    if (!cookies.empty())
-    {
-    }
 
     strcat(message, "\r\n");
     compute_message(message, content.c_str());
@@ -77,40 +69,49 @@ char *compute_post_request(char *host, char *url, char *content_type, string con
     return message;
 }
 
+// constructor for Cookie class
 Cookie::Cookie(string key, string value)
 {
     this->key = key;
     this->value = value;
 }
 
+// check if string is number
+bool isNumber(string s)
+{
+    for (unsigned int i = 0; i < s.size(); ++i) {
+        if (!isdigit(s[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// function that will register a user
 void registerFunct(char *host)
 {
     char *message, *response;
     json j, response_json_parsed;
     string username, password;
-
+    
+    // open socket
     int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         perror("open_connection");
         exit(EXIT_FAILURE);
     }
 
-    cout << endl
-         << "======== Register ========" << endl
-         << endl;
+    cout << endl << "========= Register =========" << endl << endl;
     // take credentials
-    cout << "Username: ";
-    cin >> username;
-    cout << "Password: ";
-    cin >> password;
+    cout << "username="; cin >> username;
+    cout << "password="; cin >> password;
 
     // create json
     j["username"] = username;
     j["password"] = password;
 
     // create message
-    message = compute_post_request(host, PATH_REGISTER, APPLICATION_JSON, j.dump(), vector<string>());
+    message = compute_post_request(host, PATH_REGISTER, APPLICATION_JSON, j.dump(), vector<Cookie>(), "");
 
     // send message
     send_to_server(sockfd, message);
@@ -118,9 +119,8 @@ void registerFunct(char *host)
     // receive response
     response = receive_from_server(sockfd);
     string resp = string(response);
-    if (response == NULL || resp.size() == 0)
-    {
-        cout << "Error receiving response from server." << endl;
+    if (response == NULL || resp.size() == 0) {
+        cout << endl << "Error receiving response from server." << endl << endl;
         free(message);
         free(response);
         close(sockfd);
@@ -130,24 +130,14 @@ void registerFunct(char *host)
     // take response code
     string response_code = resp.substr(9, 3);
     int code = stoi(response_code);
-    if (code >= 200 && code < 300)
-    {
-        cout << "Account created successfully." << endl;
-    }
-    else if (code >= 400)
-    {
-        char *p = strstr(response, "\r\n\r\n"); // skip headers
-        if (p != NULL)
-        {
-            p += 4;
-        }
-        // parse json
-        response_json_parsed = json::parse(p);
-        cout << response_json_parsed["error"] << endl;
-    }
-    else
-    {
-        cout << "Error creating account." << endl;
+    if (code >= 200 && code < 300) {
+        cout << endl << "Account created successfully." << endl << endl;
+    } else if (code >= 400) { 
+        response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string error = response_json_parsed["error"];
+        cout << endl << error << endl << endl;
+    } else {
+        cout << endl << "Error creating account." << endl << endl;
     }
 
     free(response);
@@ -163,40 +153,31 @@ string loginFunct(char *host)
 
     // open socket
     int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         perror("open_connection");
         exit(EXIT_FAILURE);
     }
 
-    cout << endl
-         << "======== Login ========" << endl
-         << endl;
+    cout << endl << "========= Login =========" << endl << endl;
     // take credentials
-    cout << "Username: ";
-    cin >> username;
-    cout << "Password: ";
-    cin >> password;
-
+    cout << "username="; cin >> username;
+    cout << "password="; cin >> password;
+    
     // create json
     j["username"] = username;
     j["password"] = password;
 
     // create message
-    message = compute_post_request(host, PATH_LOGIN, APPLICATION_JSON, j.dump(), vector<string>());
+    message = compute_post_request(host, PATH_LOGIN, APPLICATION_JSON, j.dump(), vector<Cookie>(), "");
 
     // send message
     send_to_server(sockfd, message);
 
     // receive response
     response = receive_from_server(sockfd);
-
     string resp = string(response);
-
-    // check if response is null
-    if (response == NULL || resp.size() == 0)
-    {
-        cout << "Server did not respond!" << endl;
+    if (response == NULL || resp.size() == 0) {
+        cout << endl << "Server did not respond!" << endl << endl;
         free(message);
         free(response);
         close(sockfd);
@@ -206,47 +187,38 @@ string loginFunct(char *host)
     // take response code
     string response_code = resp.substr(9, 3);
     int code = stoi(response_code);
-    if (code >= 200 && code < 300)
-    {
-        cout << "Login successful." << endl;
-        free(message);
-        free(response);
-        close(sockfd);
+    if (code >= 200 && code < 300) {
+        cout << endl << "Login successful." << endl << endl;
         // take session cookie
         string session_cookie = resp.substr(resp.find("connect.sid="));
         session_cookie = session_cookie.substr(0, session_cookie.find(";"));
+        free(message); // free memory
+        free(response);
+        close(sockfd);
         return session_cookie;
-    }
-    else if (code >= 400)
-    {
-        char *p = strstr(response, "\r\n\r\n"); // skip headers
-        if (p != NULL)
-        {
-            p += 4;
-        }
-        // parse json
-        response_json_parsed = json::parse(p);
-        cout << response_json_parsed["error"] << endl;
-    }
-    else
-    {
-        cout << "Error logging in." << endl;
+    } else if (code >= 400) {
+        response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string error = response_json_parsed["error"];
+        cout << endl << error << endl << endl;
+    } else {
+        cout << endl << "Error logging in." << endl << endl;
     }
 
-    free(response);
+    free(response); // free memory
     free(message);
     close(sockfd);
     return "";
 }
 
-string getLibraryAccess(char* host, vector<Cookie> cookies)
+string getLibraryAccess(char *host, vector<Cookie> cookies)
 {
+
+    cout << endl << "========= Library Access =========" << endl;
     char *message, *response;
 
     // open socket
     int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         perror("open_connection");
         exit(EXIT_FAILURE);
     }
@@ -255,12 +227,10 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     message = compute_get_request(host, PATH_LIBRARY_ACCESS, NULL, cookies);
 
     // add cookie to message
-    string cookie = "Cookie: 4302480-1";
-    for (unsigned int i = 0; i < cookies.size(); i++)
-    {
+    string cookie = "Cookie: ";
+    for (unsigned int i = 0; i < cookies.size(); i++) {
         cookie += cookies[i].key + "=" + cookies[i].value;
-        if (i != cookies.size() - 1)
-        {
+        if (i != cookies.size() - 1) {
             cookie += "; ";
         }
     }
@@ -268,6 +238,7 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     // add cookie to message
     compute_message(message, cookie.c_str());
 
+    // add authorization to message
     string auth = "Authorization: ";
     compute_message(message, auth.c_str());
 
@@ -276,17 +247,10 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     // send message
     send_to_server(sockfd, message);
 
-    cout << message << endl;
-
     // receive response
     response = receive_from_server(sockfd);
-
     string resp = string(response);
-        cout << resp << endl;
-
-    // check if response is null
-    if (response == NULL || resp.size() == 0)
-    {
+    if (response == NULL || resp.size() == 0) {
         cout << "Server did not respond!" << endl;
         free(message);
         free(response);
@@ -297,34 +261,430 @@ string getLibraryAccess(char* host, vector<Cookie> cookies)
     // take response code
     string response_code = resp.substr(9, 3);
     int code = stoi(response_code);
-
-    if (code >= 200 && code < 300)
-    {
-        cout << "Access granted." << endl << endl;
+    if (code >= 200 && code < 300) {
+        cout << endl << "Access granted." << endl << endl;
         free(message);
         free(response);
         close(sockfd);
-
-        // parse json
-        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
-        string token = response_json_parsed["token"];
+        json response_json_parsed = json::parse(resp.substr(resp.find("{"))); // parse json
+        string token = response_json_parsed["token"]; // take token
         return token;
-    }
-    else if (code >= 400)
-    {
-        cout << "Access denied." << endl;
+    } else if (code >= 400) {
+        cout << endl << "Access denied." << endl;
         free(message);
         free(response);
         close(sockfd);
         json response_json_parsed = json::parse(resp.substr(resp.find("{")));
-        cout << response_json_parsed["error"] << endl << endl;
+        string error = response_json_parsed["error"];
+        cout << error << endl << endl;
         return "";
-    } 
-    else
-    {
-        cout << "Error getting library access." << endl << endl;
+    } else {
+        cout << endl << "Error getting library access." << endl << endl;
     }
 
-
+    free(message);
+    free(response);
+    close(sockfd);
     return "";
+}
+
+void getBooks(char *host, string token)
+{
+    char *message, *response;
+
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    cout << endl << "========= Books =========" << endl << endl;
+    // create message
+    message = compute_get_request(host, PATH_LIBRARY_BOOKS, NULL, vector<Cookie>());
+
+    // add token to message
+    string auth = "Authorization: Bearer " + token;
+    compute_message(message, auth.c_str());
+
+    strcat(message, "\n");
+
+    // send message
+    send_to_server(sockfd, message);
+
+    // receive response
+    response = receive_from_server(sockfd);
+
+    string resp = string(response);
+
+    // check if response is null
+    if (response == NULL || resp.size() == 0) {
+        cout << "Server did not respond!" << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        return;
+    }
+
+    // take response code
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+    if (code >= 200 && code < 300) {
+        json response_json_parsed = json::parse(resp.substr(resp.find("[")));
+        if (response_json_parsed.size() == 0) {
+            cout << endl << "No books in library." << endl << endl;
+            free(message);
+            free(response);
+            close(sockfd);
+            return;
+        }
+        for (unsigned int i = 0; i < response_json_parsed.size(); ++i) {
+            string book = response_json_parsed[i]["title"];
+            cout << i + 1 << ". " << book << " - ID " << response_json_parsed[i]["id"] << endl;
+        }
+        cout << endl;
+    } else if (code >= 400) {
+        cout << endl << "Error getting books." << endl;
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string error = response_json_parsed["error"];
+        cout << error << endl << endl;
+    } else {
+        cout << "Error getting books." << endl << endl;
+    }
+    free(message);
+    free(response);
+    close(sockfd);
+}
+
+void addBook(char *host, string token)
+{
+    char *message, *response;
+
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    cout << endl << "========= Add Book =========" << endl << endl;
+    // take book info
+    string title, author, genre, publisher, page_count;
+    getchar();
+    cout << "title=";
+    getline(cin, title);
+    cout << "author=";
+    getline(cin, author);
+    cout << "genre=";
+    getline(cin, genre);
+    cout << "publisher=";
+    getline(cin, publisher);
+    cout << "page_count=";
+    getline(cin, page_count);
+
+    if (title.size() == 0 || author.size() == 0 || genre.size() == 0 || publisher.size() == 0 
+                    || (page_count.size() == 0 || !isNumber(page_count))) {
+        cout << endl << "Invalid input." << endl << endl;
+        return;
+    }
+
+    json j;
+    j["title"] = title;
+    j["author"] = author;
+    j["genre"] = genre;
+    j["page_count"] = page_count;
+    j["publisher"] = publisher;
+
+    // create message
+    message = compute_post_request(host, PATH_LIBRARY_BOOKS, APPLICATION_JSON,
+                                    j.dump(), vector<Cookie>(), token);
+
+    // send message
+    send_to_server(sockfd, message);
+
+    // receive response
+    response = receive_from_server(sockfd);
+
+    string resp = string(response);
+
+    // check if response is null
+    if (response == NULL || resp.size() == 0) {
+        cout << endl << "Server did not respond! Try again later!" << endl << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        return;
+    }
+
+    // take response code
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+    if (code >= 200 && code < 300) {
+        cout << endl
+             << "Book added." << endl
+             << endl;
+    } else if (code >= 400) {
+        cout << endl << "Error adding book." << endl;
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string err = response_json_parsed["error"];
+        if (err == "Authorization header is missing") {
+            cout << "You do not have access to the library!" << endl << endl;
+        } else {
+            cout << err << endl << endl;
+        }
+        return;
+    } else {
+        cout << endl << "Error adding book." << endl
+             << endl;
+    }
+
+    free(message);
+    free(response);
+    close(sockfd);
+}
+
+void getBook(char *host, string token)
+{
+    char *message, *response;
+
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    cout << endl << "========= Book Info =========" << endl << endl;
+    // take book id
+    string id;
+    cout << "id=";
+    cin >> id;
+
+    if (id.size() == 0 || !isNumber(id)) {
+        cout << endl << "Invalid input." << endl << endl;
+        return;
+    }
+
+    // create message
+    string path = (string)PATH_LIBRARY_BOOKS + "/" + id;
+    message = compute_get_request(host, (char*)path.c_str(), NULL, vector<Cookie>());
+
+    string auth = "Authorization: Bearer " + token;
+    compute_message(message, auth.c_str());
+
+    strcat(message, "\n");
+
+    // send message
+    send_to_server(sockfd, message);
+
+    // receive response
+    response = receive_from_server(sockfd);
+
+    string resp = string(response);
+
+    // check if response is null
+    if (response == NULL || resp.size() == 0) {
+        cout << "Server did not respond!" << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        return;
+    }
+
+    // take response code
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+    if (code >= 200 && code < 300) {
+        // parse json
+        json resp_json = json::parse(resp.substr(resp.find("{")));
+        string title = resp_json["title"];
+        string author = resp_json["author"];
+        string genre = resp_json["genre"];
+        string publisher = resp_json["publisher"];
+        int page_count = resp_json["page_count"];
+        cout << endl << "Book " << id << ":" << endl;
+        cout << "Title: " << title << endl;
+        cout << "Author: " << author << endl;
+        cout << "Genre: " << genre << endl;
+        cout << "Publisher: " << publisher << endl;
+        cout << "Page count: " << page_count << endl << endl;
+    } else if (code >= 400) {
+        cout << endl << "Error getting book." << endl;
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string err = response_json_parsed["error"];
+        if (err == "Authorization header is missing") {
+            cout << "You do not have acces to the library!" << endl << endl;
+        } else {
+            cout << err << endl << endl;
+        }
+    } else {
+        cout << endl << "Error getting book." << endl << endl;
+    }
+
+    free(message);
+    free(response);
+    close(sockfd);
+}
+
+void deleteBook(char* host, string token) {
+    char *message, *response;
+
+    cout << endl << "========= Delete Book =========" << endl << endl;
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    string id;
+    cout << "id=";
+    cin >> id;
+
+    if (id.size() == 0 || !isNumber(id)) {
+        cout << endl << "Invalid input." << endl << endl;
+        return;
+    }
+
+    cout << "Are you sure you want to delete this book? (y/n)" << endl;
+    string answer;
+    cin >> answer;
+
+    if (answer != "y") {
+        cout << endl << "Book not deleted." << endl;
+        return;
+    }
+
+    // create message
+    string path = (string)PATH_LIBRARY_BOOKS + "/" + id;
+
+    message = (char*)calloc(BUFLEN, sizeof(char));
+    if (!message) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    char* line = (char*)(calloc(LINELEN, sizeof(char)));
+    if (!line) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    sprintf(line, "DELETE %s HTTP/1.1", path.c_str());
+    compute_message(message, line);
+
+    sprintf(line, "Host: %s", host);
+    compute_message(message, line);
+
+    string auth = "Authorization: Bearer " + token;
+    compute_message(message, auth.c_str());
+
+    strcat(message, "\n");
+
+    // send message
+    send_to_server(sockfd, message);
+
+    // receive response
+    response = receive_from_server(sockfd);
+
+    string resp = string(response);
+
+    // check if response is null
+    if (response == NULL || resp.size() == 0) {
+        cout << "Server did not respond!" << endl;
+        free(line);
+        free(message);
+        free(response);
+        close(sockfd);
+        return;
+    }
+
+    // take response code
+
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+
+    if (code >= 200 && code < 300) {
+        cout << endl
+             << "Book with ID " << id << " deleted." << endl
+             << endl;
+    }
+    else if (code >= 400) {
+        cout << endl << "Error deleting book." << endl;
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string err = response_json_parsed["error"];
+        if (err == "Authorization header is missing") {
+            cout << "You do not have acces to the library!" << endl << endl;
+        } else {
+            cout << err << "Check the id again!" << endl << endl;
+        }
+    } else {
+        cout << endl << "Error deleting book." << endl << endl;
+    }
+
+    free(line);
+    free(message);
+    free(response);
+    close(sockfd);
+}
+
+void logout(char* host, vector<Cookie> cookies) {
+    char *message, *response;
+
+    // open socket
+    int sockfd = open_connection(IP, PORT, AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("open_connection");
+        exit(EXIT_FAILURE);
+    }
+
+    // create message
+    message = compute_get_request(host, PATH_LOGOUT, NULL, cookies);
+
+    // add cookie to message
+    string cookie = "Cookie: ";
+    for (unsigned int i = 0; i < cookies.size(); i++) {
+        cookie += cookies[i].key + "=" + cookies[i].value;
+        if (i != cookies.size() - 1) {
+            cookie += "; ";
+        }
+    }
+
+    // add cookie to message
+    compute_message(message, cookie.c_str());
+    strcat(message, "\n");
+
+    // send message
+    send_to_server(sockfd, message);
+
+    // receive response
+    response = receive_from_server(sockfd);
+    string resp = string(response);
+    if (response == NULL || resp.size() == 0) {
+        cout << "Server did not respond!" << endl;
+        free(message);
+        free(response);
+        close(sockfd);
+        return;
+    }
+
+    // take response code
+    string response_code = resp.substr(9, 3);
+    int code = stoi(response_code);
+
+    if (code >= 200 && code < 300) {
+        cout << endl << "Logged out." << endl << endl;
+    }
+    else if (code >= 400) {
+        cout << endl << "Error logging out." << endl;
+        json response_json_parsed = json::parse(resp.substr(resp.find("{")));
+        string err = response_json_parsed["error"];
+        cout << err << endl << endl;
+    } else {
+        cout << endl << "Error logging out." << endl << endl;
+    }
+
+    free(message);
+    free(response);
+    close(sockfd);
 }

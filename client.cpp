@@ -15,28 +15,21 @@ using namespace std;
 using json = nlohmann::json;
 #include <unordered_map>
 
-int main(int argc, char *argv[])
-{
-
-    string host = string(IP) + string(PORT_CHAR);
-    string readLine;
+int main(int argc, char *argv[]) {
+    string readLine, token;
+    bool loggedIn = false, libraryAccess = false;
     vector<Cookie> cookies;
-    string token;
-    bool loggedIn = false;
+    string host = string(IP) + string(PORT_CHAR);
 
-    while (true)
-    {
+    while (true) {
         cin >> readLine;
-        if (readLine == "register")
-        {
+        if (readLine == "register") {
             registerFunct((char *)host.c_str());
-        }
-        else if (readLine == "login")
-        {
+        } else if (readLine == "login") {
             string session_cookie = loginFunct((char *)host.c_str());
 
-            if (session_cookie == "")
-            {
+            if (session_cookie == "") {
+                loggedIn = false;
                 continue;
             }
             // take string before '='
@@ -50,30 +43,83 @@ int main(int argc, char *argv[])
                 cookies.push_back(cookie);
             }
             loggedIn = true;
-        }
-        else if (readLine == "exit")
-        {
+        } else if (readLine == "exit") {
+            if (loggedIn) {
+                logout((char *)host.c_str(), cookies);
+            }
             break;
-        }
-        else if (readLine == "enter_library") 
-        {
+        } else if (readLine == "enter_library") {
             if (!loggedIn) {
-                cout << "You are not logged in." << endl;
+                cout << endl << "You are not logged in." << endl << endl;
                 continue;
             }
+
             token = getLibraryAccess((char *)host.c_str(), cookies);
             if (token == "") {
+                libraryAccess = false;
                 continue;
             }
+            libraryAccess = true;
+        } else if (readLine == "get_books") {
+            if (!loggedIn) {
+                cout << endl << "You are not logged in." << endl << endl;
+                continue;
+            }
+
+            if (!libraryAccess) {
+                cout << endl << "You do not have access to the library." << endl << endl;
+                continue;
+            }
+            getBooks((char *)host.c_str(), token);
+        } else if (readLine == "add_book") {
+            if (!loggedIn) {
+                cout << endl << "You are not logged in." << endl << endl;
+                continue;
+            }
+
+            if (!libraryAccess) {
+                cout << endl << "You do not have access to the library." << endl << endl;
+                continue;
+            }
+            addBook((char *)host.c_str(), token);
+        } else if (readLine == "get_book") {
+            if (!loggedIn) {
+                cout << endl << "You are not logged in." << endl << endl;
+                continue;
+            }
+
+            if (!libraryAccess) {
+                cout << endl << "You do not have access to the library." << endl << endl;
+                continue;
+            }
+            getBook((char *)host.c_str(), token);
+        } else if (readLine == "delete_book") {
+            if (!loggedIn) {
+                cout << endl << "You are not logged in." << endl << endl;
+                continue;
+            }
+
+            if (!libraryAccess) {
+                cout << endl << "You do not have access to the library." << endl << endl;
+                continue;
+            }
+            deleteBook((char *)host.c_str(), token);
+        } else if (readLine == "logout") {
+            if (!loggedIn) {
+                cout << endl << "You are not logged in." << endl << endl;
+                continue;
+            }
+
+            logout((char *)host.c_str(), cookies);
+            loggedIn = false;
+            libraryAccess = false;
         }
-        else
-        {
-            cout << "Invalid command" << endl;
+        else {
+            cout << endl << "Invalid command" << endl;
             continue;
         }
     }
 
     cookies.clear();
-
     return 0;
 }
