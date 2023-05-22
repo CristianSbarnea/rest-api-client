@@ -87,6 +87,15 @@ bool isNumber(string s)
     return true;
 }
 
+bool findSpace(string s) {
+    for (unsigned int i = 0; i < s.size(); ++i) {
+        if (s[i] == ' ') {
+            return true;
+        }
+    }
+    return false;
+}
+
 // function that will register a user
 void registerFunct(char *host)
 {
@@ -103,8 +112,22 @@ void registerFunct(char *host)
 
     cout << endl << "========= Register =========" << endl << endl;
     // take credentials
-    cout << "username="; cin >> username;
-    cout << "password="; cin >> password;
+    getchar();
+    cout << "username="; getline(cin, username);
+    cout << "password="; getline(cin, password);
+
+    // check
+    if (username.size() == 0 || password.size() == 0) {
+        cout << endl << "Username and password cannot be empty." << endl << endl;
+        close(sockfd);
+        return;
+    }
+
+    if (findSpace(username) || findSpace(password)) {
+        cout << endl << "Username and password cannot contain spaces." << endl << endl;
+        close(sockfd);
+        return;
+    }
 
     // create json
     j["username"] = username;
@@ -160,8 +183,22 @@ string loginFunct(char *host)
 
     cout << endl << "========= Login =========" << endl << endl;
     // take credentials
-    cout << "username="; cin >> username;
-    cout << "password="; cin >> password;
+    getchar();
+    cout << "username="; getline(cin, username);
+    cout << "password="; getline(cin, password);
+
+    // check
+    if (username.size() == 0 || password.size() == 0) {
+        cout << endl << "Username and password cannot be empty." << endl << endl;
+        close(sockfd);
+        return "";
+    }
+
+    if (findSpace(username) || findSpace(password)) {
+        cout << endl << "Username and password cannot contain spaces." << endl << endl;
+        close(sockfd);
+        return "";
+    }
     
     // create json
     j["username"] = username;
@@ -228,7 +265,7 @@ string getLibraryAccess(char *host, vector<Cookie> cookies)
 
     // add cookie to message
     string cookie = "Cookie: ";
-    for (unsigned int i = 0; i < cookies.size(); i++) {
+    for (unsigned int i = 0; i < cookies.size(); ++i) {
         cookie += cookies[i].key + "=" + cookies[i].value;
         if (i != cookies.size() - 1) {
             cookie += "; ";
@@ -383,7 +420,7 @@ void addBook(char *host, string token)
     getline(cin, page_count);
 
     if (title.size() == 0 || author.size() == 0 || genre.size() == 0 || publisher.size() == 0 
-                    || (page_count.size() == 0 || !isNumber(page_count))) {
+                    || (page_count.size() == 0 || !isNumber(page_count) || findSpace(page_count))) {
         cout << endl << "Invalid input." << endl << endl;
         return;
     }
@@ -456,11 +493,11 @@ void getBook(char *host, string token)
 
     cout << endl << "========= Book Info =========" << endl << endl;
     // take book id
+    getchar();
     string id;
     cout << "id=";
-    cin >> id;
-
-    if (id.size() == 0 || !isNumber(id)) {
+    getline(cin, id);
+    if (id.size() == 0 || !isNumber(id) || findSpace(id)) {
         cout << endl << "Invalid input." << endl << endl;
         return;
     }
@@ -537,11 +574,12 @@ void deleteBook(char* host, string token) {
         exit(EXIT_FAILURE);
     }
 
+    getchar();
     string id;
     cout << "id=";
-    cin >> id;
+    getline(cin, id);
 
-    if (id.size() == 0 || !isNumber(id)) {
+    if (id.size() == 0 || !isNumber(id) || findSpace(id)) {
         cout << endl << "Invalid input." << endl << endl;
         return;
     }
@@ -643,7 +681,7 @@ void logout(char* host, vector<Cookie> cookies) {
 
     // add cookie to message
     string cookie = "Cookie: ";
-    for (unsigned int i = 0; i < cookies.size(); i++) {
+    for (unsigned int i = 0; i < cookies.size(); ++i) {
         cookie += cookies[i].key + "=" + cookies[i].value;
         if (i != cookies.size() - 1) {
             cookie += "; ";

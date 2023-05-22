@@ -62,17 +62,26 @@ headerelor, ci am facut-o eu direct. Dupa, indiferent de rezultat, afisez un mes
 
 ## Logout
 
-In functia logout(), creez headerul si il trimit catre server, dovedind ca sunt logat. Acesta va fi sters de la server. Dupa, setez bool-ul de logare pe false, pentru ca utilizatorul nu mai este logat.
+In functia logout(), creez headerul si il trimit catre server, dovedind ca sunt logat. Acesta va fi sters de la server. Dupa, setez bool-urile de logare si acces pe false, pentru ca utilizatorul nu mai este logat. De asemenea, sterg tokenul si eliberez cookie-ul.
 
 ## Exit
 
-Cand clientul primeste comanda "exit", se va apela functia de delogare, si se va inchide clientul, eliberand memoria alocata.
+Cand clientul primeste comanda "exit", se va apela functia de delogare, si se va inchide clientul, eliberand memoria alocata. De asemenea, se vor
+seta si bool-urile de logare si acces pe false.
 
 ## Alte detalii
 
 Am incercat, ca la fiecare pas, sa dezaloc memoria, sa afisez mesajele cat mai estetic si corect,
 sa inchid socketii si sa inchid clientul corect. De asemenea, am incercat sa fac codul cat mai
-usor de citit.
+usor de citit si sa validez inputul utilizatorului.
 
-In enunt nu scrie nimic de faptul ca un utilizator logat n-ar trebui sa poata sa se inregistreze
-sau sa se logheze din nou, de aceea nu am implementat asta.
+M-am folosit de booleenele definite pentru logat si acces la biblioteca, pentru a nu lasa utilizatorul sa se inregistreze sau sa se logheze daca este deja logat.
+
+Am folosit functiile de size(), findSpace() si isNumber() pentru a parsa inputul utilizatorului, pentru a nu avea probleme cu citirea datelor.
+Ele verifica inputul si intorc un bool. 
+
+Pentru fiecare comanda invalida, am afisat un mesaj corespunzator.
+
+Unde e necesar id-ul, am verificat daca este un numar si daca exista vreun spatiu, pentru a nu avea probleme cu citirea datelor.
+
+La stergerea unei carti, utilizatorul va fi intrebat daca este sigur ca vrea sa stearga cartea.

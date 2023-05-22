@@ -24,8 +24,17 @@ int main(int argc, char *argv[]) {
     while (true) {
         cin >> readLine;
         if (readLine == "register") {
+            if (loggedIn) {
+                cout << endl << "You are logged in. If you want to register, please log out." << endl << endl;
+                continue;
+            }
             registerFunct((char *)host.c_str());
         } else if (readLine == "login") {
+            if (loggedIn) {
+                cout << endl << "You are logged in. If you want to login again, please log out." << endl << endl;
+                continue;
+            }
+
             string session_cookie = loginFunct((char *)host.c_str());
 
             if (session_cookie == "") {
@@ -47,6 +56,10 @@ int main(int argc, char *argv[]) {
             if (loggedIn) {
                 logout((char *)host.c_str(), cookies);
             }
+            cookies.clear();
+            loggedIn = false;
+            libraryAccess = false;
+            token = "";
             break;
         } else if (readLine == "enter_library") {
             if (!loggedIn) {
@@ -113,13 +126,14 @@ int main(int argc, char *argv[]) {
             logout((char *)host.c_str(), cookies);
             loggedIn = false;
             libraryAccess = false;
+            cookies.clear();
+            token = "";
         }
         else {
-            cout << endl << "Invalid command" << endl;
+            cout << endl << "Invalid command" << endl << endl;
             continue;
         }
     }
 
-    cookies.clear();
     return 0;
 }
